@@ -9,6 +9,11 @@ const defaultValues = {
   image: "",
   returnPolicy: "7 days easy return",
   deliveryDays: 5,
+  originalPrice: "",
+  brand: "",
+  sku: "",
+  badge: "",
+  isFeatured: false,
 };
 
 // shared between AddProduct and EditProduct so the fields stay in sync
@@ -26,7 +31,7 @@ export default function ProductForm({ initialValues, onSubmit, submitLabel }) {
     e.preventDefault();
     setError("");
 
-    if (!form.name || !form.description || !form.price) {
+    if (!form.name.trim() || !form.description.trim() || form.price === "" || Number(form.price) < 0) {
       setError("Name, description and price are required");
       return;
     }
@@ -38,6 +43,8 @@ export default function ProductForm({ initialValues, onSubmit, submitLabel }) {
         price: Number(form.price),
         stock: Number(form.stock) || 0,
         deliveryDays: Number(form.deliveryDays) || 5,
+        originalPrice: form.originalPrice === "" ? undefined : Number(form.originalPrice),
+        isFeatured: Boolean(form.isFeatured),
       });
     } catch (err) {
       setError(err.response?.data?.message || "Something went wrong. Please try again.");
@@ -64,7 +71,7 @@ export default function ProductForm({ initialValues, onSubmit, submitLabel }) {
         <label>
           Category
           <select name="category" value={form.category} onChange={handleChange}>
-            {["Electronics", "Fashion", "Home", "Books", "Grocery", "Toys"].map((c) => (
+            {["Electronics", "Fashion", "Home", "Lifestyle", "Books", "Grocery", "Toys"].map((c) => (
               <option key={c} value={c}>
                 {c}
               </option>
@@ -77,6 +84,35 @@ export default function ProductForm({ initialValues, onSubmit, submitLabel }) {
           <input type="number" name="price" min="0" value={form.price} onChange={handleChange} required />
         </label>
       </div>
+
+      <div className="form-row">
+        <label>
+          Brand
+          <input type="text" name="brand" value={form.brand} onChange={handleChange} />
+        </label>
+
+        <label>
+          Original price (₹)
+          <input type="number" name="originalPrice" min="0" value={form.originalPrice} onChange={handleChange} />
+        </label>
+      </div>
+
+      <div className="form-row">
+        <label>
+          SKU
+          <input type="text" name="sku" value={form.sku} onChange={handleChange} />
+        </label>
+
+        <label>
+          Product badge
+          <input type="text" name="badge" placeholder="e.g. Bestseller" value={form.badge} onChange={handleChange} />
+        </label>
+      </div>
+
+      <label className="checkbox-label">
+        <input type="checkbox" name="isFeatured" checked={Boolean(form.isFeatured)} onChange={(e) => setForm({ ...form, isFeatured: e.target.checked })} />
+        Feature this product on the storefront
+      </label>
 
       <div className="form-row">
         <label>

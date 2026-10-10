@@ -33,9 +33,8 @@ const productSchema = new mongoose.Schema(
       default: 0,
     },
     image: {
-      // storing a url/path here, keeping things simple instead of file uploads
       type: String,
-      default: "https://via.placeholder.com/300x300.png?text=Product",
+      default: "",
     },
     returnPolicy: {
       // e.g. "7 days easy return", "No return", "10 days replacement only"
@@ -57,6 +56,28 @@ const productSchema = new mongoose.Schema(
     numReviews: {
       type: Number,
       default: 0,
+    },
+    originalPrice: {
+      type: Number,
+      min: 0,
+    },
+    brand: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    isFeatured: {
+      type: Boolean,
+      default: false,
+    },
+    sku: {
+      type: String,
+      trim: true,
+      index: true,
+    },
+    badge: {
+      type: String,
+      default: "",
     },
   },
   { timestamps: true }

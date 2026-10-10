@@ -25,11 +25,17 @@ const getCart = async (req, res) => {
 const addToCart = async (req, res) => {
   try {
     const { productId, quantity } = req.body;
-    const qtyToAdd = quantity && quantity > 0 ? quantity : 1;
+    const qtyToAdd = quantity === undefined ? 1 : Number(quantity);
+    if (!Number.isInteger(qtyToAdd) || qtyToAdd < 1) {
+      return res.status(400).json({ message: "Quantity must be a positive whole number" });
+    }
 
     const product = await Product.findById(productId);
     if (!product) {
       return res.status(404).json({ message: "Product not found" });
+    }
+    if (product.stock < qtyToAdd) {
+      return res.status(400).json({ message: "Requested quantity is not available in stock" });
     }
 
     let cart = await Cart.findOne({ user: req.user._id });
@@ -40,6 +46,9 @@ const addToCart = async (req, res) => {
     const existingItem = cart.items.find((item) => item.product.toString() === productId);
 
     if (existingItem) {
+      if (existingItem.quantity + qtyToAdd > product.stock) {
+        return res.status(400).json({ message: "Requested quantity exceeds available stock" });
+      }
       existingItem.quantity += qtyToAdd;
     } else {
       cart.items.push({ product: productId, quantity: qtyToAdd });
@@ -62,8 +71,8 @@ const updateCartItem = async (req, res) => {
     const { quantity } = req.body;
     const { productId } = req.params;
 
-    if (!quantity || quantity < 1) {
-      return res.status(400).json({ message: "Quantity must be at least 1" });
+    if (!Number.isInteger(Number(quantity)) || Number(quantity) < 1) {
+      return res.status(400).json({ message: "Quantity must be a positive whole number" });
     }
 
     const cart = await Cart.findOne({ user: req.user._id });
@@ -76,7 +85,15 @@ const updateCartItem = async (req, res) => {
       return res.status(404).json({ message: "Item not in cart" });
     }
 
-    item.quantity = quantity;
+    const product = await Product.findById(productId);
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+    if (Number(quantity) > product.stock) {
+      return res.status(400).json({ message: "Requested quantity exceeds available stock" });
+    }
+
+    item.quantity = Number(quantity);
     await cart.save();
     const populatedCart = await cart.populate("items.product");
     res.json(populatedCart);

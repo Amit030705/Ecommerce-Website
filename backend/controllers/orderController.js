@@ -18,7 +18,13 @@ const placeOrder = async (req, res) => {
       return res.status(400).json({ message: "Your cart is empty" });
     }
 
-    // build order items from the cart, snapshotting price + seller at the time of order
+    const unavailableItem = cart.items.find(
+      ({ product, quantity }) => !product || !Number.isInteger(quantity) || quantity < 1 || product.stock < quantity
+    );
+    if (unavailableItem) {
+      return res.status(409).json({ message: "One or more cart items are no longer available in the requested quantity" });
+    }
+
     let totalAmount = 0;
     let maxDeliveryDays = 0;
 
@@ -38,23 +44,43 @@ const placeOrder = async (req, res) => {
     const expectedDelivery = new Date();
     expectedDelivery.setDate(expectedDelivery.getDate() + maxDeliveryDays);
 
-    const order = await Order.create({
-      buyer: req.user._id,
-      items: orderItems,
-      shippingAddress,
-      paymentMethod: "COD",
-      totalAmount,
-      expectedDelivery,
-    });
+    const reservedProducts = [];
+    for (const { product, quantity } of cart.items) {
+      const reserved = await Product.findOneAndUpdate(
+        { _id: product._id, stock: { $gte: quantity } },
+        { $inc: { stock: -quantity } },
+        { new: true }
+      );
+      if (!reserved) {
+        await Promise.all(
+          reservedProducts.map(({ productId, reservedQuantity }) =>
+            Product.updateOne({ _id: productId }, { $inc: { stock: reservedQuantity } })
+          )
+        );
+        return res.status(409).json({ message: "Stock changed while placing your order. Please review your cart." });
+      }
+      reservedProducts.push({ productId: product._id, reservedQuantity: quantity });
+    }
 
-    // reduce stock for each ordered product
-    await Promise.all(
-      cart.items.map(({ product, quantity }) =>
-        Product.findByIdAndUpdate(product._id, { $inc: { stock: -quantity } })
-      )
-    );
+    let order;
+    try {
+      order = await Order.create({
+        buyer: req.user._id,
+        items: orderItems,
+        shippingAddress,
+        paymentMethod: "COD",
+        totalAmount,
+        expectedDelivery,
+      });
+    } catch (err) {
+      await Promise.all(
+        reservedProducts.map(({ productId, reservedQuantity }) =>
+          Product.updateOne({ _id: productId }, { $inc: { stock: reservedQuantity } })
+        )
+      );
+      throw err;
+    }
 
-    // clear the cart now that the order has been placed
     cart.items = [];
     await cart.save();
 

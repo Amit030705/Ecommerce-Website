@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const {
   getProducts,
+  getProductCategories,
   getProductById,
   createProduct,
   updateProduct,
@@ -13,6 +14,7 @@ const { protect, sellerOnly } = require("../middleware/authMiddleware");
 
 // note: /seller/mine must be declared before /:id or express will treat "seller" as an id
 router.get("/seller/mine", protect, sellerOnly, getMyProducts);
+router.get("/categories", getProductCategories);
 
 router.get("/", getProducts);
 router.get("/:id", getProductById);

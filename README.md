@@ -1,105 +1,102 @@
-# ShopKart — Full Stack E-Commerce Web App
+# ShopKart
 
-A Flipkart/Amazon style e-commerce website built with the **MERN stack** (MongoDB, Express, React, Node.js).
-It supports two kinds of users — **buyers** and **sellers** — and currently supports **Cash on Delivery (COD)** as the only payment method.
+ShopKart is a MERN storefront with buyer accounts, seller-owned product management, a persistent cart, COD checkout, order history, and customer reviews.
 
 ## Features
 
-**Buyers can:**
-- Register / login
-- Browse and search products by keyword and category
-- View product details — price, return policy, estimated delivery date, seller info
-- Add products to cart, update quantity, remove items
-- Checkout with a shipping address (COD only)
-- View their past orders and order status
-- Leave a rating and review on any product
+- Responsive storefront with featured products, category navigation, search, price filters, sorting, and pagination.
+- Product details with seller, stock, delivery, return information, related products, and real customer reviews.
+- JWT authentication, buyer carts, stock-checked quantity updates, and order placement using current server-side prices.
+- Seller dashboard for managing the seller's own products and orders.
+- Cash on Delivery is the only implemented payment method. No card payment or online payment is simulated.
+- Product images are managed using image URLs; local file uploads are not configured.
 
-**Sellers can:**
-- Register / login as a seller
-- Add, edit and delete their own products (price, stock, return policy, delivery time, category, image)
-- View a dashboard with total orders, total revenue, and items sold
-- See all orders that contain their products, along with buyer and shipping details
-- Update order status (placed → shipped → delivered / cancelled)
+## Requirements
 
-## Tech Stack
+- Node.js 18 or later and npm.
+- A MongoDB instance (local MongoDB or MongoDB Atlas).
 
-| Layer      | Tech                                   |
-|------------|-----------------------------------------|
-| Frontend   | React 18, React Router, Axios, Vite     |
-| Backend    | Node.js, Express                        |
-| Database   | MongoDB with Mongoose                   |
-| Auth       | JWT (JSON Web Tokens) + bcrypt          |
+## Configure the backend
 
-## Folder Structure
+From the repository root in PowerShell:
 
-```
-ecommerce-project/
-├── backend/         # Express + MongoDB REST API
-│   ├── config/       # DB connection
-│   ├── controllers/   # route handler logic
-│   ├── middleware/    # auth middleware
-│   ├── models/        # mongoose schemas
-│   ├── routes/         # express routers
-│   └── server.js
-│
-└── frontend/         # React + Vite client
-    └── src/
-        ├── api/         # axios instance
-        ├── components/   # reusable UI pieces
-        ├── context/       # auth + cart state
-        ├── pages/          # route-level pages
-        └── styles/          # css
+```powershell
+if (-not (Test-Path backend\.env)) { Copy-Item backend\.env.example backend\.env }
 ```
 
-## Getting Started
+Set these values in `backend\.env` (do not commit the file):
 
-### 1. Backend setup
+| Variable | Purpose |
+| --- | --- |
+| `PORT` | API port; defaults to `5000`. |
+| `MONGO_URI` | MongoDB connection string. |
+| `JWT_SECRET` | A long, private random secret used to sign authentication tokens. |
+| `JWT_EXPIRES_IN` | Optional token lifetime; defaults to `7d`. |
+| `CLIENT_URL` | Frontend origin allowed by CORS; defaults to `http://localhost:5173`. |
+| `DEMO_SELLER_EMAIL` | Optional email of the seller account that should own demo catalog entries. |
 
-```bash
-cd backend
+Install backend dependencies and start the API:
+
+```powershell
+Set-Location backend
 npm install
-cp .env.example .env    # then edit MONGO_URI / JWT_SECRET if needed
-npm run dev              # starts the API on http://localhost:5000
+npm run dev
 ```
 
-Make sure MongoDB is running locally (or point `MONGO_URI` in `.env` to a MongoDB Atlas cluster).
+## Add the demo catalog
 
-### 2. Frontend setup
+Register or log in to an existing **seller** account first. The seed script uses that account as the owner of the demo products; set `DEMO_SELLER_EMAIL` to select a specific seller. Then, from the `backend` directory:
 
-Open a second terminal:
+```powershell
+npm run seed:products
+```
 
-```bash
-cd frontend
+The script inserts 24 products using stable `SK-DEMO-*` SKUs and actual product-model fields. It uses `$setOnInsert`, so repeated runs leave seeded records unchanged and do not overwrite existing products or user data. It does not clear or reset the database. Products have no pre-filled ratings or customer reviews.
+
+To verify the public API after starting the backend:
+
+```powershell
+Invoke-RestMethod http://localhost:5000/api/products
+Invoke-RestMethod "http://localhost:5000/api/products?page=1&limit=12&sort=newest"
+```
+
+## Configure and run the frontend
+
+In a second PowerShell terminal, from the repository root:
+
+```powershell
+if (-not (Test-Path frontend\.env)) { Copy-Item frontend\.env.example frontend\.env }
+Set-Location frontend
 npm install
-cp .env.example .env    # only needed if your API isn't on localhost:5000
-npm run dev              # starts the app on http://localhost:5173
+npm run dev
 ```
 
-Visit `http://localhost:5173` in your browser. Register once as a **seller** to add products, and once as a **buyer** (use a different email, or a private/incognito window) to shop and place orders.
+`VITE_API_URL` defaults to `http://localhost:5000/api`. Open the Vite URL shown in the terminal (normally `http://localhost:5173`).
 
-## API Overview
+## Useful commands
 
-| Method | Endpoint                       | Description                          | Access        |
-|--------|----------------------------------|---------------------------------------|----------------|
-| POST   | /api/auth/register                | Create a new account                   | Public         |
-| POST   | /api/auth/login                   | Login                                  | Public         |
-| GET    | /api/products                      | List products (search/category filter)| Public         |
-| GET    | /api/products/:id                  | Product details + reviews              | Public         |
-| POST   | /api/products                      | Create product                         | Seller         |
-| PUT    | /api/products/:id                   | Update product                         | Seller (owner) |
-| DELETE | /api/products/:id                   | Delete product                         | Seller (owner) |
-| POST   | /api/products/:id/reviews            | Add a review                           | Logged in user |
-| GET    | /api/cart                          | Get current cart                       | Logged in user |
-| POST   | /api/cart                          | Add item to cart                       | Logged in user |
-| PUT    | /api/cart/:productId                | Update item quantity                   | Logged in user |
-| DELETE | /api/cart/:productId                | Remove item from cart                  | Logged in user |
-| POST   | /api/orders                        | Place an order (COD)                    | Buyer          |
-| GET    | /api/orders/mine                    | Buyer's own orders                      | Buyer          |
-| GET    | /api/orders/seller                  | Orders containing seller's products      | Seller         |
-| PUT    | /api/orders/:id/status               | Update order status                     | Seller         |
+```powershell
+# Backend, from backend\
+npm start
+npm run seed:products
 
-## Notes
+# Frontend, from frontend\
+npm run dev
+npm run build
+npm run preview
+```
 
-- Only **Cash on Delivery** is implemented as a payment method right now — this can be extended later with a payment gateway like Razorpay or Stripe.
-- Product images are referenced by URL rather than file upload, to keep the project simple to run locally.
-- This project is meant as a learning / portfolio project — before using in production you'd want to add things like input validation libraries, rate limiting, pagination, and image upload support.
+## API notes
+
+- `GET /api/products` supports `keyword`, `category`, `minPrice`, `maxPrice`, `sort`, and `featured`.
+- Add `page` and/or `limit` for a paginated response containing `products`, `total`, `page`, and `pages`. Requests without pagination retain the original array response.
+- `GET /api/products/categories` returns categories currently represented in the catalog.
+- Product create, update, delete, and seller order routes remain protected by seller authentication and ownership checks.
+- Cart and order APIs validate inventory. The order total and item prices are calculated from database products on the server.
+
+## Current limitations
+
+- COD only; no payment provider is integrated.
+- Images are external URLs; image upload and image hosting are not implemented.
+- The seller dashboard is seller-scoped rather than a separate global administrator console.
+- Seeded demo products are assigned to an existing seller account; the seed command exits with guidance if none exists.
